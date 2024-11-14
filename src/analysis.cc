@@ -160,6 +160,24 @@ void tensor_first_pass_liveness_analysis() {
     if (!current_tensor->is_global_weight) {
       // This tensor is intermediate
 
+      // loop over kernels
+      for(int j = 0; j < kernel_list.size(); ++j){
+        // grab input/output tenors
+        CUDAKernel cur = kernel_list[j];
+        std::unordered_set<Tensor*> in = cur.inputs;
+        std::unordered_set<Tensor*> out = cur.outputs;
+
+        if(std::find(in.begin(), in.end(), current_tensor) != in.end() || std::find(out.begin(), out.end(), current_tensor) != out.end()){
+          // replace if find newer or older for first and second respectively
+          if(cur.kernel_id < current_tensor->live_interval.first || current_tensor->live_interval.first == -1){
+            current_tensor->live_interval.first = cur.kernel_id; 
+          }
+
+          if(cur.kernel_id > current_tensor->live_interval.second){
+            current_tensor->live_interval.second = cur.kernel_id+1;
+          }
+        }
+      }
     }
     // global tensors do not need this info
   }
@@ -183,16 +201,61 @@ void Tensor::print_liveness() {
 void tensor_second_pass_interval_formation() {
   const int tensor_num = tensor_list.size();
   const int kernel_num = kernel_list.size();
-
   for (int i = 0; i < tensor_num; i++) {
+    // std::cout<<i<<std::endl;
     Tensor *current_tensor = tensor_list[i];
     // TODO: complete inactive period analysis
     if (!current_tensor->is_global_weight) {
       // This tensor is intermediate
+      
+      std::pair<int,int> period;
+      bool fill_status = true; // false - first populated, true - second populated
+      for(int j = 0; j < kernel_list.size(); ++j){
+        // if(i == 1052){
+        //   std::cout<<i<<" "<<j<<std::endl;
+        //   std::cout<<kernel_list[i].kernel_id<<std::endl;
+        // }
+        
+        CUDAKernel cur = kernel_list[j];
+        std::unordered_set<Tensor*> in = cur.inputs;
+        std::unordered_set<Tensor*> out = cur.outputs;  
+        // if(i == 1052){
+        //   std::cout<<"grabbed in and out"<<std::endl;
+        // }
+        // if not in either in or output, label the first part of period
+        if(fill_status && std::find(in.begin(), in.end(), current_tensor) == in.end() && std::find(out.begin(), out.end(), current_tensor) == out.end()){
+          period.first = cur.kernel_id;
+          fill_status = false;
+          // if(i == 1052){
+          //   std::cout<<"START OF PERIOD: "<<period.first<<std::endl;
+          // }
+          
+        // if present, label the second part of period
+        }else if((fill_status == false) && (std::find(in.begin(), in.end(), current_tensor) != in.end() || std::find(out.begin(), out.end(), current_tensor) != out.end())){
+          period.second = cur.kernel_id;
+          fill_status = true;
+          InactivePeriod * p  = new InactivePeriod(current_tensor);
+          p->kernelLevel_interval = period;
+          current_tensor->inactive_periods.push_back(p);
+          // std::cout<<p->kernelLevel_interval.first<<" "<<p->kernelLevel_interval.second<<std::endl;
+        }
+      }
+      
+      if(fill_status == false){
+          period.second = kernel_list[kernel_list.size()-1].kernel_id+1;
+          fill_status = true;
+          InactivePeriod * p  = new InactivePeriod(current_tensor);
+          p->kernelLevel_interval = period;
+          current_tensor->inactive_periods.push_back(p);
+          // std::cout<<i<<" "<<p->kernelLevel_interval.first<<" "<<p->kernelLevel_interval.second<<std::endl;
+      }
 
     } else {
       // This tensor is global
-
+      InactivePeriod * p  = new InactivePeriod(current_tensor);
+      p->is_looped = true;
+      p->kernelLevel_interval = std::pair<int,int>(0,-1); // first must be > second
+      current_tensor->inactive_periods.push_back(p);
     }
   }
 }

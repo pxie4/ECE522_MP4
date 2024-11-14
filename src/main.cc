@@ -490,9 +490,11 @@ int main(int argc, char *argv[]) {
                     max_memory_usage_GB, GPU_memory_size_GB);
             assert(false);
         }
-
+        std::cout<<"FIRST PASS"<<std::endl;
         tensor_first_pass_liveness_analysis();
+        std::cout<<"SECOND PASS"<<std::endl;
         tensor_second_pass_interval_formation();
+        std::cout<<"FIN PASS"<<std::endl;
         get_inactive_periods_time();
 
         // life cycle info
