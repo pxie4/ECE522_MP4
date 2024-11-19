@@ -3,3 +3,5 @@
 # But not these files...
 !.gitignore
 !sim_input/
+!1024-ideal/sim_result.final
+!1024-gpucpu/sim_result.final

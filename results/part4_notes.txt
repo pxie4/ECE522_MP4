@@ -1,0 +1,13 @@
+part4
+
+using batch 1024
+
+5 methods:
+1: ideal 
+2: gpu+cpu memory 
+    using size of largest tensor as GPU mem size, rest is CPU (just made CPU size massive)
+3: gpu+ssd memory - PHILLIP
+4: gpu+cpu+ssd memory
+    using about 1/2 of working set as GPU mem, 1/4 as CPU mem, 1/4 as SSD (ssd size does not need to be defined)
+    working set size = peak on the active memory usage vs time graph
+5: ??? - PHILLIP
