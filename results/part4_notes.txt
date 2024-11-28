@@ -6,8 +6,10 @@ using batch 1024
 1: ideal 
 2: gpu+cpu memory 
     using size of largest tensor as GPU mem size, rest is CPU (just made CPU size massive)
-3: gpu+ssd memory - PHILLIP
+3: gpu+ssd memory - using the gpu+cpu setup we replace  cpu with ssd
 4: gpu+cpu+ssd memory
     using about 1/4 of working set as GPU mem, 1/2 as CPU mem, 1/4 as SSD (ssd size does not need to be defined)
     working set size = peak on the active memory usage vs time graph
-5: ??? - PHILLIP
+5: gpu+cpu+ssd memory 2
+    different configuration increase gpu memory, 1/2 working set in gpu memory,
+    1/4 in cpu memory and 1/4 in flash
