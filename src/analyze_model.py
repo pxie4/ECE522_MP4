@@ -18,7 +18,7 @@ workloads = ['BERT','Inceptionv3','ResNet152','SENet154','VIT']
 for load in workloads:
     # print(os.path.join('..','results',load,'sim_input'))
     path = os.path.join('..','results',load,'sim_input')
-    model_dir = os.path.join('..','img_plot', load)
+    model_dir = os.path.join('..','img_plots', load)
     os.makedirs(model_dir)
     batch_sizes = set()                         # per workload
     for dataset in os.listdir(path):
@@ -106,7 +106,7 @@ for load in workloads:
         active_mem_bytes = np.zeros(len(kernel_info)) # index refers to kernel id, value refers to amt of bytes active based on tensors
         # For Q2:
         lifetimes_per_tensor = np.zeros(len(tensor_info)) # index refers to tensor id, value refers to lifetime in ms
-        # For Q3:
+
         active_tensor = np.zeros(len(kernel_info)) # index refers to kernel id, value refers to number of active tensors
         # For Q4:
         active_offload = np.zeros(len(kernel_info)) # index refers to kernel id, value refers to amt of bytes active in each kernel
@@ -127,6 +127,8 @@ for load in workloads:
             for j in tensor["used_in"]:
                 active_offload[j] += tensor['size']
 
+        print("Max memory allocated at a time: {}".format(np.max(active_mem_bytes)))
+        print("Largest Amount of Memory used by Kernel {} with size {}".format(np.argmax(active_offload),np.max(active_offload)))
         plt.figure(figsize=(10, 6))
         plt.plot(active_mem_bytes, label='Active Memory (Bytes)', marker='o', color='b')
         plt.xlabel('Kernel ID')
@@ -137,12 +139,22 @@ for load in workloads:
         plt.savefig(os.path.join(model_dir, 'active_memory_across_kernel_{}_{}.png'.format(load, batch)))  # Save the figure
         plt.close()
 
-        plt.hist2d(size_per_tensor, lifetimes_per_tensor, bins=[20, 20], cmap='viridis'.format(load,batch))
-        plt.colorbar(label='Count')
-        plt.xlabel('Memory Size (MB)')
-        plt.ylabel('Lifetime (s)')
-        plt.title('Lifetime vs Memory Size Distribution, Model {}, Batch Size: {}')
-        plt.savefig(os.path.join(model_dir, 'lifetime_memory_size_{}_{}.png'.format(load, batch)))  # Save the figure
+        # plt.hist2d(size_per_tensor, lifetimes_per_tensor, bins=[20, 20], cmap='viridis'.format(load,batch))
+        # plt.colorbar(label='Count')
+        # plt.xlabel('Memory Size (MB)')
+        # plt.ylabel('Lifetime (s)')
+        # plt.title('Lifetime vs Memory Size Distribution, Model {}, Batch Size: {}')
+        # plt.savefig(os.path.join(model_dir, 'lifetime_memory_size_{}_{}.png'.format(load, batch)))  # Save the figure
+        # plt.close()
+        plt.figure(figsize=(10, 6))
+        plt.scatter(size_per_tensor, lifetimes_per_tensor, c='b', alpha=0.7, edgecolors='k', s=20)
+        plt.xscale('log')  # Log scale for tensor size
+        plt.yscale('log')  # Log scale for lifetime if necessary
+        plt.xlabel('Tensor Size (Bytes, Log Scale)')
+        plt.ylabel('Lifetime (ms, Log Scale)')
+        plt.title('Tensor Size vs Lifetime (Log Scale), Model {}, Batch Size: {}'.format(load, batch))
+        plt.grid(True, which="both", linestyle='--', linewidth=0.5)
+        plt.savefig(os.path.join(model_dir, 'tensor_size_vs_lifetime_{}_{}.png'.format(load, batch)))
         plt.close()
     
         plt.figure(figsize=(10, 6))
