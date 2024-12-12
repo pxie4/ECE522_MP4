@@ -1,0 +1,14 @@
+HINTS
+
+Prefetch - For each input tensor for a kernel, find that kernel ID and assign a prefetch hint for that tensor at kernel_id - 1
+
+Preallocate - For each output tensor kernel, find that kernel ID and assign a preallocate hint for that tensor at kernel_id - 1
+
+Preeviction - For each tensor, assign a preeviction hint at end of its live interval
+
+Results (so far, using VIT-1024)
+    Prefetch + Preallocate + Preeviction - stalls out, idk why
+    Prefetch + Preallocate - barely worse than without HINTS
+    Prefetch - barely better than without HINTS
+
+Moving forward, will be testing the rest of the suite with only Prefetching, prob should do the same for replacement policy
