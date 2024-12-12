@@ -10,6 +10,7 @@
 
 #include "simulationComponents.h"
 #include "printUtils.h"
+#include <iostream>
 
 using std::get;
 using std::pow;
@@ -658,6 +659,7 @@ int System::getCurrentIteration() {
 }
 
 void System::getCurrentMovementHints(vector<TensorMovementHint> &hints) {
+  std::cout<<"MOVEMENT HINTS SIZE: "<<movement_hints.size()<<std::endl;
   hints.clear();
   while (movement_hints.size() &&
       movement_hints[current_hint_index].issued_kernel_id % kernel_list.size() ==
@@ -665,6 +667,7 @@ void System::getCurrentMovementHints(vector<TensorMovementHint> &hints) {
     hints.push_back(movement_hints[current_hint_index]);
     current_hint_index = (current_hint_index + 1) % movement_hints.size();
   }
+  std::cout<<"HINT SIZE: "<<hints.size()<<std::endl;
 }
 
 size_t System::getCurrentTotalPF() {

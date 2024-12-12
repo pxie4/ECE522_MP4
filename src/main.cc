@@ -505,8 +505,10 @@ int main(int argc, char *argv[]) {
         }
         delete r;
 
-        if (use_movement_hints)
+        if (use_movement_hints){
+            std::cout<<"STARTING MOVEMENT HINTS"<<std::endl;
             scheduling_movement_hints();
+        }
 
         // nprintf("Average interval time: %f ms\n", inactive_periods_list[(inactive_periods_list.size() - 1) / 2]->time_estimated);
         iprintf("Checking output stat files\n", "");

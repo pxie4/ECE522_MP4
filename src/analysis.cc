@@ -343,27 +343,26 @@ void print_GPU_mem_really_in_use() {
 
 void scheduling_movement_hints() {
   // TODO: fill the data structure "std::vector<TensorMovementHint> movement_hints" with your own hints!
-
-  
-
-  
   for (int i = 0; i < kernel_list.size(); i++) {
     CUDAKernel cur_kernel = kernel_list[i]; 
+    
     std::unordered_set<Tensor*> cur_inputs = cur_kernel.inputs;
     std::unordered_set<Tensor*> cur_outputs = cur_kernel.outputs;
+    std::cout<<"KERNEL ID: "<<cur_kernel.kernel_id<<" INPUT SIZE: "<<cur_inputs.size()<<std::endl;
     // prefetch hints
-    for(auto it = cur_inputs.begin(); it != cur_inputs.begin(); it++){
+    for(auto it = cur_inputs.begin(); it != cur_inputs.end(); it++){
       int temp;
-      if(cur_kernel.kernel_id-2 < 0){
+      if(cur_kernel.kernel_id-1 < 0){
         temp = 0;
       }else{
-        temp = cur_kernel.kernel_id-2;
+        temp = cur_kernel.kernel_id-1;
       }
+      std::cout<<(*it)->tensor_id<<std::endl;
       TensorMovementHint * hint = new TensorMovementHint(Simulator::NOT_KNOWN, Simulator::IN_GPU,temp,*it);
       movement_hints.push_back(*hint);
     }
     // preallocate hints
-    for(auto it = cur_outputs.begin(); it != cur_outputs.begin(); it++){
+    for(auto it = cur_outputs.begin(); it != cur_outputs.end(); it++){
       int temp;
       if(cur_kernel.kernel_id-1 < 0){
         temp = 0;
@@ -375,8 +374,8 @@ void scheduling_movement_hints() {
     }    
   }
 
-  //pre eviction hints
-  for(int i = 0; i < tensor_list.size(); i++){\
+  // //pre eviction hints
+  for(int i = 0; i < tensor_list.size(); i++){
     int last_used = tensor_list[i]->live_interval.second;
     TensorMovementHint * hint = new TensorMovementHint(Simulator::IN_GPU, Simulator::IN_SSD,last_used,tensor_list[i]);
     movement_hints.push_back(*hint);
@@ -384,4 +383,8 @@ void scheduling_movement_hints() {
 
   // make sure the movement hints are sorted, the simulator depends on this
   std::sort(movement_hints.begin(), movement_hints.end());
+  for(int i = 0; i < movement_hints.size(); i++){
+    // std::cout<<*it.from<<" "<<*it.to<<std::endl;
+    std::cout<<movement_hints[i].issued_kernel_id<<std::endl;
+  }
 }
