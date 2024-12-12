@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include <limits.h>
 
 #include <cstdlib>
 #include <exception>
@@ -276,27 +277,32 @@ tuple<Addr, GPUPageTable::GPUPageTableEntry, TensorLocation, GPUPageTable::Evict
   tuple<Addr, GPUPageTable::GPUPageTableEntry, TensorLocation, EvictCandidate> evicted_entry;
   switch (policy) {
     case EvcPolicy::RANDOM: {
-      // select random entry
-      int bucket, bucket_size;
-      unordered_map<Addr, GPUPageTable::GPUPageTableEntry>::local_iterator rand_it;
-      do {
-        do { // magic that randomly select from unordered map in const time
-            bucket = rand() % page_table.bucket_count();
-            bucket_size = page_table.bucket_size(bucket);
-        } while (bucket_size == 0);
-        rand_it = std::next(page_table.begin(bucket), rand() % bucket_size);
-      } while (sim_sys->CPU_PT.getEntry(rand_it->first)->in_transfer);
-
+      // Changing Rand to use a different Eviction Policy based on how close the tensor is to being used
+      int curr_kernel = sim_sys->getCurrentKernel()->kernel_id;
+      // inefficient approach iterate through GP-PT looking at each tensor
+      int max_distance  = 0;
       EvictCandidate &ret_candidate = get<3>(evicted_entry);
-      ret_candidate.vpn = rand_it->first;
-      ret_candidate.tensor = searchTensorForPage(ret_candidate.vpn);
-      ret_candidate.hotness = Eviction_P::Invalid;
-      ret_candidate.exact_hotness = Eviction_P::Invalid;
+      
+      for (unordered_map<Addr, GPUPageTableEntry>::iterator curr_entry = page_table.begin(); curr_entry != page_table.end(); ++curr_entry) {
+        
+        ret_candidate.vpn = curr_entry->first;
+        ret_candidate.tensor = searchTensorForPage(ret_candidate.vpn);
+        ret_candidate.hotness = Eviction_P::Invalid;
+        ret_candidate.exact_hotness = Eviction_P::Invalid;
 
-      get<0>(evicted_entry) = rand_it->first;
-      get<1>(evicted_entry) = rand_it->second;
-      // get<2>(evicted_entry) = (rand() & 1) ? IN_SSD : IN_CPU;
-      get<2>(evicted_entry) = IN_CPU;
+        auto it = std::lower_bound(ret_candidate.tensor->in_kernels.begin(),
+                                   ret_candidate.tensor->in_kernels.end(),
+                                   curr_kernel);
+        int cmp_kernel = (it != ret_candidate.tensor->in_kernels.end()) ? *it : INT_MAX;
+
+        if (max_distance  < cmp_kernel - curr_kernel) {
+          max_distance  = cmp_kernel - curr_kernel;
+          get<0>(evicted_entry) = curr_entry->first;
+          get<1>(evicted_entry) = curr_entry->second;
+          get<2>(evicted_entry) = IN_CPU;
+        }
+      }
+
       break;
     }
     case EvcPolicy::LRU: {

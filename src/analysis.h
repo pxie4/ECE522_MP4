@@ -79,7 +79,8 @@ class Tensor {
          */
         std::pair<int, int> live_interval = { -1, -1 };
         std::vector<InactivePeriod*> inactive_periods;  //TODO: Important:  A vector of inactive periods of this tensor. With the start of inactive_period sorted in ascending order
-
+        // ----------- MY EDITS-PX4
+        std::vector<int> in_kernels; // list of kernel ids that the tensor is present in
 };
 
 class InactivePeriod {

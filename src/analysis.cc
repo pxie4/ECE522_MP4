@@ -156,18 +156,24 @@ void tensor_first_pass_liveness_analysis() {
 
   for (int i = 0; i < tensor_num; i++) {
     Tensor *current_tensor = tensor_list[i];
+
     // TODO: complete liveness analysis
     if (!current_tensor->is_global_weight) {
       // This tensor is intermediate
 
       // loop over kernels
       for(int j = 0; j < kernel_list.size(); ++j){
+        
+
         // grab input/output tenors
         CUDAKernel cur = kernel_list[j];
         std::unordered_set<Tensor*> in = cur.inputs;
         std::unordered_set<Tensor*> out = cur.outputs;
 
         if(std::find(in.begin(), in.end(), current_tensor) != in.end() || std::find(out.begin(), out.end(), current_tensor) != out.end()){
+          // populate in_kernel
+          current_tensor->in_kernels.push_back(cur.kernel_id);
+          std::make_heap(current_tensor->in_kernels.begin(),current_tensor->in_kernels.end(),std::greater<>{});
           // replace if find newer or older for first and second respectively
           if(cur.kernel_id < current_tensor->live_interval.first || current_tensor->live_interval.first == -1){
             current_tensor->live_interval.first = cur.kernel_id; 
