@@ -11,4 +11,6 @@ Results (so far, using VIT-1024)
     Prefetch + Preallocate - barely worse than without HINTS
     Prefetch - barely better than without HINTS
 
+VIT and INCEPTION are the only ones with performance improvements, the rest they are the same
+
 Moving forward, will be testing the rest of the suite with only Prefetching, prob should do the same for replacement policy
