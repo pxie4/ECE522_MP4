@@ -278,31 +278,25 @@ tuple<Addr, GPUPageTable::GPUPageTableEntry, TensorLocation, GPUPageTable::Evict
     case EvcPolicy::RANDOM: {
       // Changing Rand to use a different Eviction Policy based on how close the tensor is to being used
       int curr_kernel = sim_sys->getCurrentKernel()->kernel_id;
-      // inefficient approach iterate through GP-PT looking at each tensor
-      int max_distance  = 0;
+      if (curr_kernel != last_updated || tensor_heap.empty()){
+        populateQueue();
+      } 
       EvictCandidate &ret_candidate = get<3>(evicted_entry);
+      auto candidate_entry = tensor_heap.top();
+
+      GPUPageTableEntry* entry = getEntry(candidate_entry.second);
+      ret_candidate.vpn = candidate_entry.second;
+      ret_candidate.tensor = searchTensorForPage(ret_candidate.vpn);
+      ret_candidate.hotness = Eviction_P::Invalid;
+      ret_candidate.exact_hotness = Eviction_P::Invalid;
+      get<0>(evicted_entry) = candidate_entry.second;
+      get<1>(evicted_entry) = *entry;
+      get<2>(evicted_entry) = IN_CPU;
+      // printf("Evicted Tensor ID: %d, VPN: %d, Distance: %d \n", ret_candidate.tensor->tensor_id, candidate_entry.second, candidate_entry.first);
+      tensor_heap.pop();
       
-      for (unordered_map<Addr, GPUPageTableEntry>::iterator curr_entry = page_table.begin(); curr_entry != page_table.end(); ++curr_entry) {
-        
-        ret_candidate.vpn = curr_entry->first;
-        ret_candidate.tensor = searchTensorForPage(ret_candidate.vpn);
-        ret_candidate.hotness = Eviction_P::Invalid;
-        ret_candidate.exact_hotness = Eviction_P::Invalid;
-
-        auto it = std::lower_bound(ret_candidate.tensor->in_kernels.begin(),
-                                   ret_candidate.tensor->in_kernels.end(),
-                                   curr_kernel);
-        int cmp_kernel = (it != ret_candidate.tensor->in_kernels.end()) ? *it : INT_MAX;
-
-        if (max_distance  < cmp_kernel - curr_kernel) {
-          max_distance  = cmp_kernel - curr_kernel;
-          get<0>(evicted_entry) = curr_entry->first;
-          get<1>(evicted_entry) = curr_entry->second;
-          get<2>(evicted_entry) = IN_CPU;
-        }
-      }
-
       break;
+
     }
     case EvcPolicy::LRU: {
       sim_sys->LRUSuggestInitialLRUBase();
@@ -324,7 +318,6 @@ tuple<Addr, GPUPageTable::GPUPageTableEntry, TensorLocation, GPUPageTable::Evict
     case EvcPolicy::GUIDED: {
       priority_queue<EvictCandidate, vector<EvictCandidate>, EvictCandidateComp> candidates;
       for (int i = 0; i < candidate_cnt; i++) {
-        // select random entry
         int bucket, bucket_size;
         unordered_map<Addr, GPUPageTable::GPUPageTableEntry>::local_iterator rand_it;
         do {
@@ -417,6 +410,30 @@ tuple<Addr, GPUPageTable::GPUPageTableEntry, TensorLocation, GPUPageTable::Evict
   // sanity check
   assert(page_table.find(get<0>(evicted_entry)) != page_table.end());
   return evicted_entry;
+}
+
+void GPUPageTable::populateQueue(){
+  while (!tensor_heap.empty()) {
+    tensor_heap.pop();
+  }
+  last_updated = sim_sys->getCurrentKernel()->kernel_id;
+  CUDAKernel tmp_kernel = *sim_sys->getCurrentKernel();
+  for (unordered_map<Addr, GPUPageTableEntry>::iterator curr_entry = page_table.begin(); curr_entry != page_table.end(); ++curr_entry) {
+    Tensor* curr_tensor = searchTensorForPage(curr_entry->first);
+    
+    // make sure evicted vpn isn't part of the tensors used by the curr_kernel
+    if(std::find(tmp_kernel.inputs.begin(), tmp_kernel.inputs.end(), curr_tensor) == tmp_kernel.inputs.end() 
+    && std::find(tmp_kernel.outputs.begin(), tmp_kernel.outputs.end(), curr_tensor) == tmp_kernel.outputs.end()){
+      if (curr_tensor && !curr_tensor->is_global_weight) {
+        auto it = std::lower_bound(curr_tensor->in_kernels.begin(),
+                                    curr_tensor->in_kernels.end(),
+                                    last_updated);
+        int cmp_kernel = (it != curr_tensor->in_kernels.end()) ? *it : INT_MAX;
+        tensor_heap.emplace(cmp_kernel - last_updated, curr_entry->first);
+        // printf("Evicted Tensor ID: %d, VPN: %d, Distance: %d \n", curr_tensor->tensor_id, curr_entry->first, cmp_kernel - last_updated);
+      } 
+    }
+  }
 }
 
 pair<size_t, size_t> GPUPageTable::getCapacity() {

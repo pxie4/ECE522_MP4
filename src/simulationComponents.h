@@ -200,6 +200,19 @@ class GPUPageTable {
 
     // for eviction guide
     map<Addr, Tensor*> range_remap;
+    
+    // UPDATED Random
+    struct TensorComparator {
+    bool operator()(const std::pair<int, Addr>& a, const std::pair<int, Addr>& b) const {
+        // Custom comparison logic
+      return a.first < b.first; // Max-Heap
+      }
+    };
+    std::priority_queue<std::pair<int, Addr>, 
+                    std::vector<std::pair<int, Addr>>, 
+                    TensorComparator> tensor_heap;
+    int last_updated; // the kernel id that the tenor_heap was last updated
+    void populateQueue();
     // LRU
     list<Addr> lru_addrs;
     unordered_map<Addr, list<Addr>::iterator> lru_table;
